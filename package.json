@@ -1,0 +1,32 @@
+{
+  "name": "estudio-cards-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL; next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:init": "tsx scripts/db-init.ts"
+  },
+  "dependencies": {
+    "@vercel/blob": "^0.27.0",
+    "bcryptjs": "^2.4.3",
+    "jszip": "^3.10.1",
+    "next": "^14.2.35",
+    "pg": "^8.13.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "20.14.10",
+    "@types/pg": "^8.11.10",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "5.5.3"
+  }
+}
