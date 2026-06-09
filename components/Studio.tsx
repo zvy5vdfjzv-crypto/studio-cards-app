@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
-import Auth from "./Auth";
 import ChannelBar from "./ChannelBar";
 import BuilderTab from "./BuilderTab";
 import AiTab from "./AiTab";
@@ -9,24 +8,24 @@ import GeneratorTab from "./GeneratorTab";
 import { preloadGoogleFonts } from "./canvas";
 import type { Channel, TemplateRecord } from "@/lib/types";
 
-type User = { id: string; email: string; name: string };
 type Tab = "Build" | "AI" | "Gen";
+type Features = { ai: boolean; instagram: boolean; drive: boolean };
 
 export default function Studio() {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [tab, setTab] = useState<Tab>("Build");
   const [genPrefill, setGenPrefill] = useState<string>("");
   const [flash, setFlash] = useState<string>("");
+  const [features, setFeatures] = useState<Features>({ ai: false, instagram: false, drive: false });
 
   const active = channels.find((c) => c.id === activeId) || null;
 
   const loadMe = useCallback(async () => {
     const d = await api.get("/api/auth/me");
-    setUser(d.user);
+    if (d.features) setFeatures(d.features);
     setChannels(d.channels || []);
     if (d.channels?.length && !d.channels.find((c: Channel) => c.id === activeId)) {
       setActiveId(d.channels[0].id);
@@ -77,27 +76,11 @@ export default function Studio() {
       </>
     );
 
-  if (!user)
-    return (
-      <>
-        <Header tab={tab} setTab={setTab} hideTabs />
-        <Auth onAuthed={() => loadMe()} />
-      </>
-    );
+  const activeTab: Tab = tab === "AI" && !features.ai ? "Build" : tab;
 
   return (
     <>
-      <Header
-        tab={tab}
-        setTab={setTab}
-        user={user}
-        onLogout={async () => {
-          await api.post("/api/auth/logout");
-          setUser(null);
-          setChannels([]);
-          setActiveId("");
-        }}
-      />
+      <Header tab={activeTab} setTab={setTab} showAi={features.ai} />
       <div className="wrap">
         {flash && (
           <div className={"alert" + (/conectado/.test(flash) ? " ok" : "")}>
@@ -109,14 +92,15 @@ export default function Studio() {
           activeId={activeId}
           setActiveId={setActiveId}
           reload={loadMe}
+          features={features}
         />
         {!active ? (
           <div className="card">
             <div className="b empty">Crie um canal acima para começar.</div>
           </div>
-        ) : tab === "Build" ? (
+        ) : activeTab === "Build" ? (
           <BuilderTab channel={active} templates={templates} reloadTemplates={() => loadTemplates(active.id)} />
-        ) : tab === "AI" ? (
+        ) : activeTab === "AI" ? (
           <AiTab
             onToGen={(text) => {
               setGenPrefill(text);
@@ -134,14 +118,12 @@ export default function Studio() {
 function Header({
   tab,
   setTab,
-  user,
-  onLogout,
+  showAi,
   hideTabs,
 }: {
   tab: Tab;
   setTab: (t: Tab) => void;
-  user?: User;
-  onLogout?: () => void;
+  showAi?: boolean;
   hideTabs?: boolean;
 }) {
   return (
@@ -153,21 +135,13 @@ function Header({
           <button className={tab === "Build" ? "on" : ""} onClick={() => setTab("Build")}>
             1 · Criar template
           </button>
-          <button className={tab === "AI" ? "on" : ""} onClick={() => setTab("AI")}>
-            2 · Conteúdo (IA)
-          </button>
+          {showAi && (
+            <button className={tab === "AI" ? "on" : ""} onClick={() => setTab("AI")}>
+              2 · Conteúdo (IA)
+            </button>
+          )}
           <button className={tab === "Gen" ? "on" : ""} onClick={() => setTab("Gen")}>
-            3 · Gerar cards
-          </button>
-        </div>
-      )}
-      {user && (
-        <div style={{ marginLeft: hideTabs ? "auto" : 14, display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="muted" style={{ fontSize: 12 }}>
-            {user.email}
-          </span>
-          <button className="btn sm" onClick={onLogout}>
-            sair
+            {showAi ? "3" : "2"} · Gerar cards
           </button>
         </div>
       )}

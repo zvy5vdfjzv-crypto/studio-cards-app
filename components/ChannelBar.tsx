@@ -8,11 +8,13 @@ export default function ChannelBar({
   activeId,
   setActiveId,
   reload,
+  features,
 }: {
   channels: Channel[];
   activeId: string;
   setActiveId: (id: string) => void;
   reload: () => Promise<void>;
+  features: { ai: boolean; instagram: boolean; drive: boolean };
 }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -81,10 +83,10 @@ export default function ChannelBar({
           )}
         </div>
 
-        {active && (
+        {active && (features.instagram || features.drive) && (
           <div style={{ marginTop: 14, display: "flex", gap: 18, flexWrap: "wrap" }}>
-            <IgBlock channel={active} connected={igConnected} reload={reload} />
-            <DriveBlock channel={active} connected={driveConnected} reload={reload} />
+            {features.instagram && <IgBlock channel={active} connected={igConnected} reload={reload} />}
+            {features.drive && <DriveBlock channel={active} connected={driveConnected} reload={reload} />}
           </div>
         )}
       </div>
