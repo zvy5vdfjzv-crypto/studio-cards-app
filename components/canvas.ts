@@ -66,6 +66,8 @@ export interface RenderInput {
   bgImg: HTMLImageElement | null;
   texts: (string | undefined)[];
   customFontFamily?: string | null;
+  // ajuste de foto por card: zoom (>=1) e foco normalizado 0–1 (0=topo/esquerda, 1=baixo/direita)
+  photoAdjust?: { zoom: number; fx: number; fy: number };
 }
 
 export function renderCard(canvas: HTMLCanvasElement, input: RenderInput) {
@@ -86,11 +88,19 @@ export function renderCard(canvas: HTMLCanvasElement, input: RenderInput) {
     ctx.beginPath();
     ctx.rect(zx, zy, zw, zh);
     ctx.clip();
+    const adj = input.photoAdjust;
+    const zoom = adj && adj.zoom > 0 ? adj.zoom : 1;
+    const fx = adj ? Math.min(1, Math.max(0, adj.fx)) : 0.5;
+    const fy = adj ? Math.min(1, Math.max(0, adj.fy)) : 0.5;
     const iw = input.bgImg.width,
       ih = input.bgImg.height,
-      s = Math.max(zw / iw, zh / ih);
+      s = Math.max(zw / iw, zh / ih) * zoom,
+      drawW = iw * s,
+      drawH = ih * s,
+      dx = zx - (drawW - zw) * fx,
+      dy = zy - (drawH - zh) * fy;
     if (t.gray) ctx.filter = "grayscale(1) contrast(1.05)";
-    ctx.drawImage(input.bgImg, zx + (zw - iw * s) / 2, zy + (zh - ih * s) / 2, iw * s, ih * s);
+    ctx.drawImage(input.bgImg, dx, dy, drawW, drawH);
     ctx.filter = "none";
     ctx.restore();
   };

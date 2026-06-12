@@ -14,6 +14,7 @@ interface GenCard {
   results: ImageResult[];
   state: "idle" | "busy" | "ok" | "warn";
   published: boolean;
+  adjust: { zoom: number; fx: number; fy: number };
 }
 
 export default function GeneratorTab({
@@ -83,6 +84,7 @@ export default function GeneratorTab({
         results: [],
         state: "idle",
         published: false,
+        adjust: { zoom: 1, fx: 0.5, fy: 0.5 },
       };
     });
     setCards(fresh);
@@ -181,7 +183,7 @@ export default function GeneratorTab({
               "Pink decolou como Peter Pan na Broadway ; Pink singer ; Hollywood Reporter\nCadeira de Taylor Swift vira relíquia nos playoffs ; Taylor Swift ; E! News"
             }
           />
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginTop: 10 }}>
+          <div className="gen-actions" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginTop: 10 }}>
             <div className="ctl" style={{ margin: 0 }}>
               qtd. máx.
               <input type="number" value={maxN} onChange={(e) => setMaxN(parseInt(e.target.value) || 10)} style={{ width: 80 }} />
@@ -287,13 +289,14 @@ function CardItem({
         bgImg: bgRef.current,
         texts: card.texts,
         customFontFamily: fontRef.current,
+        photoAdjust: card.adjust,
       });
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card.bgUrl, card.texts.join(""), tpl]);
+  }, [card.bgUrl, card.texts.join(""), tpl, card.adjust.zoom, card.adjust.fx, card.adjust.fy]);
 
   useEffect(() => {
     registerCanvas(canvasRef.current);
@@ -313,12 +316,12 @@ function CardItem({
   }
 
   function pick(it: ImageResult) {
-    patch({ bgUrl: it.url, credit: (it.author ? it.author + " / " : "") + it.lic, source: it.source });
+    patch({ bgUrl: it.url, credit: (it.author ? it.author + " / " : "") + it.lic, source: it.source, adjust: { zoom: 1, fx: 0.5, fy: 0.5 } });
   }
 
   function uploadOwn(file: File) {
     const url = URL.createObjectURL(file);
-    patch({ bgUrl: url, credit: "foto própria", source: "upload" });
+    patch({ bgUrl: url, credit: "foto própria", source: "upload", adjust: { zoom: 1, fx: 0.5, fy: 0.5 } });
   }
 
   function download() {
@@ -387,6 +390,51 @@ function CardItem({
           </div>
         ))}
         <div className="credit">{card.credit ? "Foto: " + card.credit : ""}</div>
+        {tpl.photoZone && card.bgUrl && (
+          <div className="adjust">
+            <div className="adjrow">
+              <span className="lbl">zoom</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.02}
+                value={card.adjust.zoom}
+                onChange={(e) => patch({ adjust: { ...card.adjust, zoom: parseFloat(e.target.value) } })}
+              />
+            </div>
+            <div className="adjrow">
+              <span className="lbl">↔ horizontal</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={card.adjust.fx}
+                onChange={(e) => patch({ adjust: { ...card.adjust, fx: parseFloat(e.target.value) } })}
+              />
+            </div>
+            <div className="adjrow">
+              <span className="lbl">↕ vertical</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={card.adjust.fy}
+                onChange={(e) => patch({ adjust: { ...card.adjust, fy: parseFloat(e.target.value) } })}
+              />
+            </div>
+            {(card.adjust.zoom !== 1 || card.adjust.fx !== 0.5 || card.adjust.fy !== 0.5) && (
+              <button
+                className="btn sm"
+                onClick={() => patch({ adjust: { zoom: 1, fx: 0.5, fy: 0.5 } })}
+              >
+                centralizar
+              </button>
+            )}
+          </div>
+        )}
         <div className="row">
           <button className="btn sm" onClick={() => { setShowSearch(!showSearch); setThumbs(card.results); }}>
             trocar foto
