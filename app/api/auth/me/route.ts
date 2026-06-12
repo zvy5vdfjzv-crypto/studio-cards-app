@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export const GET = handler(async () => {
   const features = {
     ai: !!process.env.ANTHROPIC_API_KEY,
+    assistant: !!process.env.GEMINI_API_KEY,
     instagram: !!process.env.FACEBOOK_APP_ID,
     drive: !!process.env.GOOGLE_CLIENT_ID,
   };

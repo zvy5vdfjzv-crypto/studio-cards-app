@@ -21,10 +21,14 @@ export default function GeneratorTab({
   channel,
   templates,
   prefill,
+  desiredTemplate,
+  runSignal,
 }: {
   channel: Channel;
   templates: TemplateRecord[];
   prefill: string;
+  desiredTemplate?: string | null;
+  runSignal?: number;
 }) {
   const [tplId, setTplId] = useState<string>(templates[0]?.id || "");
   const [input, setInput] = useState(prefill || "");
@@ -46,6 +50,19 @@ export default function GeneratorTab({
     if (!templates.find((t) => t.id === tplId)) setTplId(templates[0]?.id || "");
   }, [templates, tplId]);
 
+  // Auto-geração disparada pelo assistente IA (runSignal incrementa a cada pedido).
+  useEffect(() => {
+    if (!runSignal) return;
+    const matched = desiredTemplate
+      ? templates.find((t) => t.name.toLowerCase() === desiredTemplate.toLowerCase())
+      : undefined;
+    const useId = matched?.id || tplId || templates[0]?.id || "";
+    if (useId && useId !== tplId) setTplId(useId);
+    if (prefill) setInput(prefill);
+    run(prefill, useId || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runSignal]);
+
   // pré-carrega arte + fonte do template selecionado
   useEffect(() => {
     frameRef.current = null;
@@ -58,14 +75,24 @@ export default function GeneratorTab({
 
   const fields = tpl?.textZones.map((z) => z.key).join(" · ") || "";
 
-  async function run() {
-    if (!tpl) return setStatus({ k: "err", t: "Escolha um template." });
-    const lines = input.split("\n").map((l) => l.trim()).filter(Boolean);
+  async function run(overrideText?: string, overrideTplId?: string) {
+    const useTpl: TemplateData | null = overrideTplId
+      ? templates.find((t) => t.id === overrideTplId)?.data || null
+      : tpl;
+    if (!useTpl) return setStatus({ k: "err", t: "Escolha um template." });
+    const text = overrideText ?? input;
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
     const items = lines.slice(0, Math.max(1, Math.min(20, maxN)));
     if (!items.length) return setStatus({ k: "err", t: "Cole pelo menos uma linha." });
 
-    if (!frameRef.current) frameRef.current = await loadImg(tpl.frame).catch(() => null);
-    if (!fontRef.current) fontRef.current = await ensureCustomFont(tpl.fontData);
+    // Override de template (assistente) força recarregar arte/fonte corretas.
+    if (overrideTplId) {
+      frameRef.current = await loadImg(useTpl.frame).catch(() => null);
+      fontRef.current = await ensureCustomFont(useTpl.fontData);
+    } else {
+      if (!frameRef.current) frameRef.current = await loadImg(useTpl.frame).catch(() => null);
+      if (!fontRef.current) fontRef.current = await ensureCustomFont(useTpl.fontData);
+    }
 
     stopRef.current = false;
     setRunning(true);
@@ -73,7 +100,7 @@ export default function GeneratorTab({
 
     const fresh: GenCard[] = items.map((line, i) => {
       const parts = line.split(";").map((s) => s.trim());
-      const texts = tpl.textZones.map((_, zi) => (zi === 0 ? parts[0] : parts[zi + 1]));
+      const texts = useTpl.textZones.map((_, zi) => (zi === 0 ? parts[0] : parts[zi + 1]));
       return {
         id: i + 1,
         texts,
@@ -92,7 +119,7 @@ export default function GeneratorTab({
     for (let i = 0; i < fresh.length; i++) {
       if (stopRef.current) break;
       setStatus({ k: "busy", t: `Buscando foto ${i + 1}/${fresh.length}…` });
-      if (tpl.photoZone) {
+      if (useTpl.photoZone) {
         try {
           const d = await api.get("/api/image/search?q=" + encodeURIComponent(fresh[i].query));
           const chosen: ImageResult | null = d.chosen;
@@ -188,7 +215,7 @@ export default function GeneratorTab({
               qtd. máx.
               <input type="number" value={maxN} onChange={(e) => setMaxN(parseInt(e.target.value) || 10)} style={{ width: 80 }} />
             </div>
-            <button className="btn solid" disabled={running || !tpl} onClick={run}>
+            <button className="btn solid" disabled={running || !tpl} onClick={() => run()}>
               {running ? <span className="spin" /> : "✦ GERAR LOTE"}
             </button>
             {running && (

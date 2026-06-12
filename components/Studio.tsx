@@ -4,12 +4,13 @@ import { api } from "./api";
 import ChannelBar from "./ChannelBar";
 import BuilderTab from "./BuilderTab";
 import AiTab from "./AiTab";
+import AssistantTab from "./AssistantTab";
 import GeneratorTab from "./GeneratorTab";
 import { preloadGoogleFonts } from "./canvas";
 import type { Channel, TemplateRecord } from "@/lib/types";
 
-type Tab = "Build" | "AI" | "Gen";
-type Features = { ai: boolean; instagram: boolean; drive: boolean };
+type Tab = "Build" | "AI" | "Chat" | "Gen";
+type Features = { ai: boolean; assistant: boolean; instagram: boolean; drive: boolean };
 
 export default function Studio() {
   const [loading, setLoading] = useState(true);
@@ -18,8 +19,10 @@ export default function Studio() {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [tab, setTab] = useState<Tab>("Build");
   const [genPrefill, setGenPrefill] = useState<string>("");
+  const [genTemplate, setGenTemplate] = useState<string | null>(null);
+  const [genRunSignal, setGenRunSignal] = useState<number>(0);
   const [flash, setFlash] = useState<string>("");
-  const [features, setFeatures] = useState<Features>({ ai: false, instagram: false, drive: false });
+  const [features, setFeatures] = useState<Features>({ ai: false, assistant: false, instagram: false, drive: false });
 
   const active = channels.find((c) => c.id === activeId) || null;
 
@@ -76,11 +79,13 @@ export default function Studio() {
       </>
     );
 
-  const activeTab: Tab = tab === "AI" && !features.ai ? "Build" : tab;
+  let activeTab: Tab = tab;
+  if (activeTab === "AI" && !features.ai) activeTab = "Build";
+  if (activeTab === "Chat" && !features.assistant) activeTab = "Build";
 
   return (
     <>
-      <Header tab={activeTab} setTab={setTab} showAi={features.ai} />
+      <Header tab={activeTab} setTab={setTab} showAi={features.ai} showAssistant={features.assistant} />
       <div className="wrap">
         {flash && (
           <div className={"alert" + (/conectado/.test(flash) ? " ok" : "")}>
@@ -107,8 +112,24 @@ export default function Studio() {
               setTab("Gen");
             }}
           />
+        ) : activeTab === "Chat" ? (
+          <AssistantTab
+            channel={active}
+            onGenerate={(lines, template) => {
+              setGenPrefill(lines);
+              setGenTemplate(template);
+              setGenRunSignal((s) => s + 1);
+              setTab("Gen");
+            }}
+          />
         ) : (
-          <GeneratorTab channel={active} templates={templates} prefill={genPrefill} />
+          <GeneratorTab
+            channel={active}
+            templates={templates}
+            prefill={genPrefill}
+            desiredTemplate={genTemplate}
+            runSignal={genRunSignal}
+          />
         )}
       </div>
     </>
@@ -119,11 +140,13 @@ function Header({
   tab,
   setTab,
   showAi,
+  showAssistant,
   hideTabs,
 }: {
   tab: Tab;
   setTab: (t: Tab) => void;
   showAi?: boolean;
+  showAssistant?: boolean;
   hideTabs?: boolean;
 }) {
   return (
@@ -133,15 +156,20 @@ function Header({
       {!hideTabs && (
         <div className="tabs">
           <button className={tab === "Build" ? "on" : ""} onClick={() => setTab("Build")}>
-            1 · Criar template
+            Criar template
           </button>
+          {showAssistant && (
+            <button className={tab === "Chat" ? "on" : ""} onClick={() => setTab("Chat")}>
+              ✦ Assistente
+            </button>
+          )}
           {showAi && (
             <button className={tab === "AI" ? "on" : ""} onClick={() => setTab("AI")}>
-              2 · Conteúdo (IA)
+              Conteúdo (IA)
             </button>
           )}
           <button className={tab === "Gen" ? "on" : ""} onClick={() => setTab("Gen")}>
-            {showAi ? "3" : "2"} · Gerar cards
+            Gerar cards
           </button>
         </div>
       )}
